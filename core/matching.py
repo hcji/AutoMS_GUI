@@ -11,13 +11,14 @@ from tqdm import tqdm
 
 
 class FeatureMatching:
-    def __init__(self, peaks):
+    def __init__(self, peaks, files):
         self.peaks = peaks
+        self.files = files
         self.feature_table = None
         
     def simple_matching(self, mz_tol = 0.01, rt_tol = 20):
         peaks = self.peaks
-        files = list(peaks.keys())
+        files = self.files
         rts, mzs, intensities, scores = [], [], [], []
         for f, vals in tqdm(peaks.items()):
             i = files.index(f)
@@ -58,7 +59,7 @@ class FeatureMatching:
                 else:
                     pass
         scores = np.nanmedian(np.array(scores), axis = 1)
-        intensities = pd.DataFrame(np.array(intensities), columns=files)    
+        intensities = pd.DataFrame(np.array(intensities), columns=files)
         output = pd.DataFrame({'RT': rts, 'MZ': mzs, 'Score': scores})
         output = pd.concat([output, intensities], axis = 1)
         output['Annotated Name'] = None
@@ -71,7 +72,7 @@ class FeatureMatching:
     def feature_filter(self, min_frac = 0.5):
         if self.feature_table is None:
             return None
-        files = list(self.peaks.keys())
+        files = self.files
         intensities = self.feature_table[files]
         count_nan = np.sum(~np.isnan(intensities), axis = 1)
         wh = np.where(count_nan / intensities.shape[1] >= min_frac)[0]

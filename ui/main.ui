@@ -180,11 +180,43 @@
            <bool>true</bool>
           </property>
           <property name="text">
-           <string>save</string>
+           <string>Save</string>
           </property>
           <property name="icon">
            <iconset>
             <normaloff>../../DeepMASS2_GUI/icon/save.png</normaloff>../../DeepMASS2_GUI/icon/save.png</iconset>
+          </property>
+          <property name="iconSize">
+           <size>
+            <width>30</width>
+            <height>30</height>
+           </size>
+          </property>
+          <property name="checkable">
+           <bool>false</bool>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="butt_param">
+          <property name="maximumSize">
+           <size>
+            <width>16777215</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="layoutDirection">
+           <enum>Qt::LeftToRight</enum>
+          </property>
+          <property name="autoFillBackground">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string>Parameter</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../../DeepMASS2_GUI/icon/parameters.png</normaloff>../../DeepMASS2_GUI/icon/parameters.png</iconset>
           </property>
           <property name="iconSize">
            <size>
