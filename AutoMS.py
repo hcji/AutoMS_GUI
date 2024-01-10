@@ -17,9 +17,11 @@ from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout
 
 from uic import main
 from uic.param_ui import ParamUI
+
 from core import hpic
-from core import peakeval
 from core import matching
+from core import peakeval
+from core import formula
 from core import tandem
 
 
@@ -44,7 +46,8 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.ion_mode = 'positive'
         self.feature_table = None
         self.parameters = {'feature_extraction':{'ion_mode': 'positive', 'intensity_thres': 1000, 'snr_thres': 5.0, 'mass_inv': 1.0, 'rt_inv': 15.0},
-                           'feature_matching':{'method': 'simple', 'rt_tol': 15, 'mz_tol': 0.01, 'match_min_frac': 0.5}}
+                           'feature_matching':{'method': 'Simple', 'rt_tol': 15, 'mz_tol': 0.01, 'min_frac': 0.5},
+                           'precursor_type':{'positive': ['M+H'], 'negative': ['M-H']}}
         
         self.progressBar.setValue(100)
         self.progressBar.setFormat('Ready')
@@ -136,7 +139,8 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
 
 
     def _set_feature_table(self, msg):
-        self. feature_table = msg
+        self.feature_table = msg
+        # print(self.feature_table)
 
 
     def _set_parameters(self):
@@ -148,7 +152,9 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
                            'feature_matching':{'method': str(self.ParamUI.match_method.currentText()),
                                                'rt_tol': float(self.ParamUI.match_rt_tol.value()),
                                                'mz_tol': float(self.ParamUI.match_mz_tol.value()),
-                                               'min_frac': float(self.ParamUI.match_min_frac.value())}}
+                                               'min_frac': float(self.ParamUI.match_min_frac.value())},
+                           'precursor_type':{'positive': self.ParamUI.get_chosen_precursor_type(self.ParamUI.listWidget_1),
+                                             'negative': self.ParamUI.get_chosen_precursor_type(self.ParamUI.listWidget_2)}}
         self.ParamUI.close()
         print(self.parameters)
 
@@ -213,7 +219,8 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
     def match_peaks(self):
         self.progressBar.setValue(40)
         self.progressBar.setFormat('Matching Features')
-        self.Thread_Matching = Thread_Matching(self.files, self.peaks,
+        self.Thread_Matching = Thread_Matching(peaks = self.peaks, 
+                                               files = self.files,
                                                ion_mode = self.parameters['feature_extraction']['ion_mode'],
                                                method = self.parameters['feature_matching']['method'],
                                                rt_tol = self.parameters['feature_matching']['rt_tol'],
@@ -230,11 +237,13 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.Thread_Assigning = Thread_Assigning(feature_table = self.feature_table, 
                                                  files = self.files, 
                                                  rt_tol = self.parameters['feature_matching']['rt_tol'],
-                                                 mz_tol = self.parameters['feature_matching']['mz_tol'])
+                                                 mz_tol = self.parameters['feature_matching']['mz_tol'],
+                                                 ion_mode = self.parameters['feature_extraction']['ion_mode'], 
+                                                 precursor_type_list = self.parameters['precursor_type'][self.parameters['feature_extraction']['ion_mode']])
         self.Thread_Assigning._result.connect(self._set_feature_table)
         self.Thread_Assigning.start()
         self.Thread_Assigning.finished.connect(self.fill_feature_table)
-        
+
 
     def fill_peak_table(self):
         selectItem = self.list_files.currentItem()
@@ -251,7 +260,7 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.progressBar.setFormat('Finished')
         feature_table = self.feature_table
         self._set_table_widget(self.tab_feature, feature_table)
-        self.fill_feature_table()
+        self.fill_peak_table()
 
 
     def save_results(self):
@@ -340,12 +349,14 @@ class Thread_Matching(QThread):
 class Thread_Assigning(QThread):
     _result = QtCore.pyqtSignal(pd.DataFrame)
 
-    def __init__(self, feature_table, files, rt_tol, mz_tol):
+    def __init__(self, feature_table, files, rt_tol, mz_tol, ion_mode, precursor_type_list):
         super(Thread_Assigning, self).__init__()
         self.feature_table = feature_table
         self.files = files
         self.rt_tol = rt_tol
         self.mz_tol = mz_tol
+        self.ion_mode = ion_mode
+        self.precursor_type_list = precursor_type_list
 
     def __del__(self):
         self.wait()
@@ -355,6 +366,7 @@ class Thread_Assigning(QThread):
         spectrums = tandem.load_tandem_ms(self.files)
         spectrums = tandem.cluster_tandem_ms(spectrums, mz_tol = self.mz_tol, rt_tol = self.rt_tol)
         feature_table = tandem.feature_spectrum_matching(self.feature_table, spectrums, mz_tol = self.mz_tol, rt_tol = self.rt_tol)
+        feature_table = formula.assign_formula(feature_table, precursor_type_list = self.precursor_type_list, mz_tol = self.mz_tol)
         self._result.emit(feature_table)
 
 
@@ -365,9 +377,3 @@ if __name__ == '__main__':
     ui = AutoMS()
     ui.show()
     sys.exit(app.exec_())
-
-
-
-
-
-

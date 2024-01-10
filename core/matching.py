@@ -20,9 +20,9 @@ class FeatureMatching:
         peaks = self.peaks
         files = self.files
         rts, mzs, intensities, scores = [], [], [], []
-        for f, vals in tqdm(peaks.items()):
-            i = files.index(f)
-            peak = vals['peaks']
+        for i in range(len(peaks)):
+            f = files[i]
+            peak = peaks[i]['peaks']
             for j in peak.index:
                 k1 = np.abs(peak['mz'][j] - mzs) < mz_tol
                 k2 = np.abs(peak['rt'][j] - rts) < rt_tol
@@ -62,10 +62,9 @@ class FeatureMatching:
         intensities = pd.DataFrame(np.array(intensities), columns=files)
         output = pd.DataFrame({'RT': rts, 'MZ': mzs, 'Score': scores})
         output = pd.concat([output, intensities], axis = 1)
-        output['Annotated Name'] = None
-        output['InChIKey'] = None
-        output['SMILES'] = None
-        output['Matching Score'] = None
+        output['Formula'] = None
+        output['Formula_Score'] = None
+        output['Precursor_Type'] = None
         self.feature_table = output
         
         

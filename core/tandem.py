@@ -12,8 +12,8 @@ from tqdm import tqdm
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics.pairwise import cosine_similarity
 
-from matchms import Spectrum
 from matchms.importing import load_from_mzml
+from core.Spectrum import Spectrum
 
 
 def load_tandem_ms(files):
@@ -81,6 +81,11 @@ def cluster_tandem_ms(all_spectrums, mz_tol = 0.01, rt_tol = 15):
     for i, spectrums_i in enumerate(tqdm(spectrums)):
         if len(spectrums_i) == 1:
             spectrums[i] = spectrums_i[0]
+            spectrums[i] = Spectrum(mz = spectrums_i[0].mz,
+                                    intensities = spectrums_i[0].intensities,
+                                    metadata={'spectrum_id': 'spectrum_{}'.format(i),
+                                              "precursor_mz": mzs[i],
+                                              "retention_time": rts[i]})
             continue
         spectrums_vectors = [spectrum_to_vector(s) for s in spectrums_i]
         cos_distance = 1 - cosine_similarity(spectrums_vectors)
@@ -125,11 +130,11 @@ def consensus_spectrum(spectrums, mz_window = 0.1):
     return mz, intensity
 
 
-def feature_spectrum_matching(feature_table, spectrums, mz_tol = 0.01, rt_tol = 15):
+def feature_spectrum_matching(feature_table, spectrums, mz_tol = 0.01, rt_tol = 15, ms2_filter = True):
     print('matching consesus spectrums with features...')
     mzs = spectrums.loc[:,'mz'].values
     rts = spectrums.loc[:,'rt'].values
-    tandem_ms = []
+    assigned, tandem_ms = [], []
     for i in tqdm(feature_table.index):
         rt = float(feature_table.loc[i, 'RT'])
         mz = float(feature_table.loc[i, 'MZ'])
@@ -142,8 +147,12 @@ def feature_spectrum_matching(feature_table, spectrums, mz_tol = 0.01, rt_tol = 
         elif len(kk) > 1:
             k = kk[np.argmin(np.abs(mz - np.array(mzs)[kk]))]
         else:
-            k = kk[0]        
+            k = kk[0]    
+        assigned.append(i)
         tandem_ms.append(spectrums.loc[k,'spectrum'])
     feature_table['Tandem_MS'] = tandem_ms
+    if ms2_filter:
+        feature_table = feature_table.loc[assigned, :]
+        feature_table = feature_table.reset_index(drop = True)
     return feature_table
         
