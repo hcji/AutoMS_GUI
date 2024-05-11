@@ -154,5 +154,6 @@ def feature_spectrum_matching(feature_table, spectrums, mz_tol = 0.01, rt_tol = 
     if ms2_filter:
         feature_table = feature_table.loc[assigned, :]
         feature_table = feature_table.reset_index(drop = True)
+    feature_table['Tandem_MS'] = [feature_table.loc[i,'Tandem_MS'].set('title', 'compound_{}'.format(i)) for i in feature_table.index] 
     return feature_table
         

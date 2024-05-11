@@ -309,7 +309,6 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self._set_table_widget(self.tab_info, info_table)
 
 
-
 class Thread_Feature(QThread):
     _i = QtCore.pyqtSignal(int)
     _result = QtCore.pyqtSignal(dict)
