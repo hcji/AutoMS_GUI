@@ -9,11 +9,16 @@ import os
 import shutil
 import numpy as np
 import pandas as pd
+from matchms.exporting import save_as_mgf
 
 # from PyQt5.Qt import QThread
 from PyQt5.QtCore import Qt, QVariant, QThread
 from PyQt5 import QtCore, QtWidgets
 from PyQt5.QtWidgets import QApplication, QMainWindow, QGridLayout
+
+from matplotlib.figure import Figure
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5 import NavigationToolbar2QT as NavigationToolbar
 
 from uic import main
 from uic.param_ui import ParamUI
@@ -46,8 +51,8 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.ion_mode = 'positive'
         self.feature_table = None
         self.parameters = {'feature_extraction':{'ion_mode': 'positive', 'intensity_thres': 1000, 'snr_thres': 5.0, 'mass_inv': 1.0, 'rt_inv': 15.0},
-                           'feature_matching':{'method': 'Simple', 'rt_tol': 15, 'mz_tol': 0.01, 'min_frac': 0.5},
-                           'precursor_type':{'positive': ['M+H'], 'negative': ['M-H']}}
+                           'feature_matching':{'method': 'simple', 'rt_tol': 15, 'mz_tol': 0.01, 'min_frac': 0.5},
+                           'precursor_type':{'positive': ['[M+H]+'], 'negative': ['[M-H]-']}}
         
         self.progressBar.setValue(100)
         self.progressBar.setFormat('Ready')
@@ -61,12 +66,20 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.ParamUI.butt_ok.clicked.connect(self._set_parameters)
         self.ParamUI.butt_cancel.clicked.connect(self.ParamUI.close)
         self.list_files.itemClicked.connect(self.fill_peak_table)
+        self.tab_feature.itemClicked.connect(self.plot_spectrum)
         
         # thread
         self.Thread_Feature = None
         self.Thread_Evaluating = None
         self.Thread_Matching = None
         self.Thread_Assigning = None
+        
+        # plot
+        self.fig_spectrum = MakeFigure(3.6, 2.4, dpi = 300)
+        self.fig_spectrum_ntb = NavigationToolbar(self.fig_spectrum, self)
+        self.gridlayoutfigSpec = QGridLayout(self.box_spectrum)
+        self.gridlayoutfigSpec.addWidget(self.fig_spectrum)
+        self.gridlayoutfigSpec.addWidget(self.fig_spectrum_ntb)
 
 
     def WarnMsg(self, Text):
@@ -261,11 +274,39 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         feature_table = self.feature_table
         self._set_table_widget(self.tab_feature, feature_table)
         self.fill_peak_table()
+        self._set_finished()
 
 
     def save_results(self):
-        pass
+        options = QtWidgets.QFileDialog.Options()
+        options |= QtWidgets.QFileDialog.DontUseNativeDialog
+        savePath = QtWidgets.QFileDialog.getExistingDirectory(self, "Save", options=options)
+        if savePath:
+            if savePath == '':
+                self.WarnMsg('Invalid path')
+                return
+            feature_table = self.feature_table
+            spectrum_list = [s for s in list(feature_table['Tandem_MS']) if s is not None]
+            feature_table.to_csv(os.path.join(savePath, 'feature_table.csv'))
+            save_as_mgf(spectrum_list, os.path.join(savePath, 'spectrum_list.mgf'))
+        self.InforMsg('Finished')
 
+
+    def plot_spectrum(self):
+        wh = self.tab_feature.currentRow()
+        s = self.feature_table.loc[wh, 'Tandem_MS']
+        self.fig_spectrum.PlotSpectrum(s)
+        self.fill_information_table()
+
+
+    def fill_information_table(self):
+        wh = self.tab_feature.currentRow()
+        s = self.feature_table.loc[wh, 'Tandem_MS']
+        information = s.metadata
+        keys = [k for k in information.keys()]
+        values = [information[k] for k in keys]
+        info_table = pd.DataFrame({'keys':keys, 'values':values})
+        self._set_table_widget(self.tab_info, info_table)
 
 
 
@@ -340,7 +381,7 @@ class Thread_Matching(QThread):
     def run(self):
         linker = matching.FeatureMatching(self.peaks, self.files)
         if self.method == 'simple':
-            linker.simple_matching(mz_tol = self.mz_tol, rt_tol = self.rt_tol)
+            feature_table = linker.simple_matching(mz_tol = self.mz_tol, rt_tol = self.rt_tol)
             feature_table = linker.feature_filter(min_frac = self.min_frac)
             feature_table['Ionmode'] = self.ion_mode
             self._result.emit(feature_table)
@@ -368,6 +409,33 @@ class Thread_Assigning(QThread):
         feature_table = tandem.feature_spectrum_matching(self.feature_table, spectrums, mz_tol = self.mz_tol, rt_tol = self.rt_tol)
         feature_table = formula.assign_formula(feature_table, precursor_type_list = self.precursor_type_list, mz_tol = self.mz_tol)
         self._result.emit(feature_table)
+
+
+class MakeFigure(FigureCanvas):
+    def __init__(self,width=5, height=5, dpi=300):
+        self.fig = Figure(figsize=(width, height), dpi=dpi)
+        self.fig.subplots_adjust(top=0.95,bottom=0.3,left=0.18,right=0.95)
+        super(MakeFigure,self).__init__(self.fig) 
+        self.axes = self.fig.add_subplot(111)
+        self.axes.spines['bottom'].set_linewidth(0.5)
+        self.axes.spines['left'].set_linewidth(0.5)
+        self.axes.spines['right'].set_linewidth(0.5)
+        self.axes.spines['top'].set_linewidth(0.5)
+        self.axes.tick_params(width=0.8,labelsize=3)
+        FigureCanvas.setSizePolicy(self, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Expanding)
+        FigureCanvas.updateGeometry(self)
+        
+        
+    def PlotSpectrum(self, spectrum):
+        self.axes.cla()
+        mz, abunds = spectrum.peaks.mz, spectrum.peaks.intensities
+        abunds /= np.max(abunds)
+        self.axes.vlines(mz, ymin=0, ymax=abunds, color='r', lw = 0.5)
+        self.axes.axhline(y=0,color='black', lw = 0.5)
+        self.axes.set_xlabel('m/z', fontsize = 3.5)
+        self.axes.set_ylabel('abundance', fontsize = 3.5)
+        self.draw()
+
 
 
 if __name__ == '__main__':

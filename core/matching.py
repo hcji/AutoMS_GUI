@@ -66,6 +66,7 @@ class FeatureMatching:
         output['Formula_Score'] = None
         output['Precursor_Type'] = None
         self.feature_table = output
+        return self.feature_table
         
         
     def feature_filter(self, min_frac = 0.5):

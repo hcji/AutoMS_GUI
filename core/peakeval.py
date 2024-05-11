@@ -18,7 +18,7 @@ model_path = 'core/model/denoising_autoencoder.pkl'
 def evaluate_peaks(peaks, pics, length=14, params=(8.5101, 1.6113, 0.1950), min_width = 6):
     traces = []
     exclude = []
-
+    
     for i in tqdm(peaks.index):
         rt = peaks.loc[i, 'rt']
         pic = peaks.loc[i, 'pic_label']

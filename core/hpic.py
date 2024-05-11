@@ -27,7 +27,7 @@ SOFTWARE.
 
 
 import numpy as np
-import hdbscan
+import fast_hdbscan as hdbscan
 from sklearn.preprocessing import minmax_scale
 import pandas as pd
 from collections import deque

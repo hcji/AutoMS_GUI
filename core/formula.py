@@ -9,13 +9,12 @@ Created on Wed Nov 15 10:16:57 2023
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
-from matchms.filtering.load_adducts import load_adducts_dict
 
 from core.pycdk import IsotopeFromString, IsotopeSimilarity, getFormulaExactMass
 from core.subformula.mass_spectrum import MassSpectrum
 
 
-adducts_dict = load_adducts_dict()
+adducts_dict = np.load('data/adducts_dict.npy', allow_pickle=True).item()
 formula_database = pd.read_csv('data/AutoMsFormulaDB-v1.0.csv')
 
 def calc_parent_mass(s, precursor_type = '[M+H]+'):

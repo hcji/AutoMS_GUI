@@ -305,6 +305,9 @@
           </item>
           <item>
            <widget class="QTableWidget" name="tab_peak">
+            <property name="sortingEnabled">
+             <bool>true</bool>
+            </property>
             <attribute name="horizontalHeaderStretchLastSection">
              <bool>true</bool>
             </attribute>
@@ -349,6 +352,9 @@
               <height>99999</height>
              </size>
             </property>
+            <property name="sortingEnabled">
+             <bool>true</bool>
+            </property>
            </widget>
           </item>
          </layout>
@@ -369,20 +375,6 @@
          <property name="currentIndex">
           <number>0</number>
          </property>
-         <widget class="QWidget" name="page_meta">
-          <attribute name="title">
-           <string>Information</string>
-          </attribute>
-          <layout class="QGridLayout" name="gridLayout_2">
-           <item row="0" column="0">
-            <widget class="QGroupBox" name="box_meta">
-             <property name="title">
-              <string/>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </widget>
          <widget class="QWidget" name="page_spectrum">
           <property name="font">
            <font>
@@ -399,6 +391,25 @@
              <property name="title">
               <string/>
              </property>
+            </widget>
+           </item>
+          </layout>
+         </widget>
+         <widget class="QWidget" name="page_meta">
+          <attribute name="title">
+           <string>Information</string>
+          </attribute>
+          <layout class="QGridLayout" name="gridLayout_2">
+           <item row="0" column="0">
+            <widget class="QGroupBox" name="box_meta">
+             <property name="title">
+              <string/>
+             </property>
+             <layout class="QGridLayout" name="gridLayout_5">
+              <item row="0" column="0">
+               <widget class="QTableWidget" name="tab_info"/>
+              </item>
+             </layout>
             </widget>
            </item>
           </layout>
