@@ -45,11 +45,7 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
             pass
         
         # initial
-        self.files = []
-        self.peaks = []
-        self.peak_scores = []
-        self.ion_mode = 'positive'
-        self.feature_table = None
+        self.Initial()
         self.parameters = {'feature_extraction':{'ion_mode': 'positive', 'intensity_thres': 1000, 'snr_thres': 5.0, 'mass_inv': 1.0, 'rt_inv': 15.0},
                            'feature_matching':{'method': 'simple', 'rt_tol': 15, 'mz_tol': 0.01, 'min_frac': 0.5},
                            'precursor_type':{'positive': ['[M+H]+'], 'negative': ['[M-H]-']}}
@@ -66,6 +62,7 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.ParamUI.butt_ok.clicked.connect(self._set_parameters)
         self.ParamUI.butt_cancel.clicked.connect(self.ParamUI.close)
         self.list_files.itemClicked.connect(self.fill_peak_table)
+        self.tab_peak.itemClicked.connect(self.plot_chromatogram)
         self.tab_feature.itemClicked.connect(self.plot_spectrum)
         
         # thread
@@ -80,6 +77,19 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.gridlayoutfigSpec = QGridLayout(self.box_spectrum)
         self.gridlayoutfigSpec.addWidget(self.fig_spectrum)
         self.gridlayoutfigSpec.addWidget(self.fig_spectrum_ntb)
+        
+        self.fig_chromatogram = MakeFigure(3.6, 2.4, dpi = 300)
+        self.fig_chromatogram_ntb = NavigationToolbar(self.fig_chromatogram, self)
+        self.gridlayoutfigChrom = QGridLayout(self.box_chrom)
+        self.gridlayoutfigChrom.addWidget(self.fig_chromatogram)
+        self.gridlayoutfigChrom.addWidget(self.fig_chromatogram_ntb)
+
+
+    def Initial(self):
+        self.files = []
+        self.peaks = []
+        self.peak_scores = []
+        self.feature_table = None
 
 
     def WarnMsg(self, Text):
@@ -113,6 +123,7 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.butt_open.setDisabled(True)
         self.butt_run.setDisabled(True)
         self.butt_save.setDisabled(True)
+        self.butt_param.setDisabled(True)
         
 
     def _set_finished(self):
@@ -121,6 +132,7 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.butt_open.setDisabled(False)
         self.butt_run.setDisabled(False)
         self.butt_save.setDisabled(False)
+        self.butt_param.setDisabled(False)
         
 
     def _set_table_widget(self, widget, data):
@@ -149,6 +161,10 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         
     def _set_evaluated_peaks(self, msg):
         self.peak_scores.append(msg)
+        
+        
+    def _set_tracked_peaks(self, msg):
+        self.peak_profile.append(msg)
 
 
     def _set_feature_table(self, msg):
@@ -173,6 +189,7 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
 
 
     def load_files(self):
+        self.Initial()
         self._set_busy()
         options = QtWidgets.QFileDialog.Options()
         options |= QtWidgets.QFileDialog.DontUseNativeDialog
@@ -201,7 +218,6 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self._set_busy()
         self.progressBar.setValue(0)
         self.progressBar.setFormat('Extracting Features')
-        self.peaks = []
         self.Thread_Feature = Thread_Feature(self.files,
                                              intensity_thres = self.parameters['feature_extraction']['intensity_thres'], 
                                              snr_thres = self.parameters['feature_extraction']['snr_thres'], 
@@ -214,9 +230,9 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         
         
     def evaluate_peaks(self):
-        self.progressBar.setValue(10)
         self.progressBar.setFormat('Evaluating Features')
         self.Thread_Evaluating = Thread_Evaluating(self.files, self.peaks)
+        self.Thread_Evaluating._i.connect(self._set_process_bar)
         self.Thread_Evaluating._result.connect(self._set_evaluated_peaks)
         self.Thread_Evaluating.start()
         self.Thread_Evaluating.finished.connect(self.assign_peak_score)
@@ -272,6 +288,8 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
         self.progressBar.setValue(100)
         self.progressBar.setFormat('Finished')
         feature_table = self.feature_table
+        feature_table = feature_table.reset_index(drop = True)
+        feature_table['Index'] = feature_table.index
         self._set_table_widget(self.tab_feature, feature_table)
         self.fill_peak_table()
         self._set_finished()
@@ -294,20 +312,33 @@ class AutoMS(QMainWindow, main.Ui_MainWindow):
 
     def plot_spectrum(self):
         wh = self.tab_feature.currentRow()
+        wh = int(self.tab_feature.item(wh, 7).text())
         s = self.feature_table.loc[wh, 'Tandem_MS']
         self.fig_spectrum.PlotSpectrum(s)
         self.fill_information_table()
+        
+        
+    def plot_chromatogram(self):
+        wf = self.list_files.currentRow()
+        wp = self.tab_peak.currentRow()
+        rt1 = float(self.tab_peak.item(wp, 3).text())
+        rt2 = float(self.tab_peak.item(wp, 4).text())
+        pic_label = self.tab_peak.item(wp, 9).text()
+        pic = self.peaks[wf]['pics'][pic_label]
+        self.fig_chromatogram.PlotChromatogram(pic, rt1, rt2)
 
 
     def fill_information_table(self):
         wh = self.tab_feature.currentRow()
+        wh = int(self.tab_feature.item(wh, 7).text())
         s = self.feature_table.loc[wh, 'Tandem_MS']
         information = s.metadata
         keys = [k for k in information.keys()]
         values = [information[k] for k in keys]
         info_table = pd.DataFrame({'keys':keys, 'values':values})
         self._set_table_widget(self.tab_info, info_table)
-
+        
+        
 
 class Thread_Feature(QThread):
     _i = QtCore.pyqtSignal(int)
@@ -433,6 +464,17 @@ class MakeFigure(FigureCanvas):
         self.axes.axhline(y=0,color='black', lw = 0.5)
         self.axes.set_xlabel('m/z', fontsize = 3.5)
         self.axes.set_ylabel('abundance', fontsize = 3.5)
+        self.draw()
+        
+        
+    def PlotChromatogram(self, pic, rtmin, rtmax):
+        self.axes.cla()
+        rt = pic[:,0]
+        abunds = pic[:,2]
+        self.axes.plot(rt, abunds)
+        self.axes.axvspan(rtmin, rtmax, color='red', alpha=0.2)
+        self.axes.set_xlabel('retention time', fontsize = 3.5)
+        self.axes.set_ylabel('intensities', fontsize = 3.5)
         self.draw()
 
 

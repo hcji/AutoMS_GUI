@@ -206,11 +206,7 @@ class Ui_MainWindow(object):
         self.box_chrom = QtWidgets.QGroupBox(self.page_chrom)
         self.box_chrom.setTitle("")
         self.box_chrom.setObjectName("box_chrom")
-        self.gridLayout_3.addWidget(self.box_chrom, 0, 1, 1, 1)
-        self.list_samples = QtWidgets.QListWidget(self.page_chrom)
-        self.list_samples.setMaximumSize(QtCore.QSize(200, 16777215))
-        self.list_samples.setObjectName("list_samples")
-        self.gridLayout_3.addWidget(self.list_samples, 0, 0, 1, 1)
+        self.gridLayout_3.addWidget(self.box_chrom, 0, 0, 1, 1)
         self.tabWidget.addTab(self.page_chrom, "")
         self.gridLayout.addWidget(self.splitter_4, 0, 0, 1, 1)
         MainWindow.setCentralWidget(self.centralwidget)
@@ -219,7 +215,7 @@ class Ui_MainWindow(object):
         MainWindow.setStatusBar(self.statusbar)
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(0)
+        self.tabWidget.setCurrentIndex(2)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
